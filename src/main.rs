@@ -18,7 +18,11 @@ use std::{fs, path::PathBuf};
 /// Struct for CLI args
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
-struct Args {}
+struct Args {
+    /// Debug mode
+    #[arg(short, long)]
+    debug: bool,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct TrelloCard {
@@ -90,7 +94,7 @@ fn get_auth(path: &PathBuf, password: &str) -> Result<StoredAuth> {
         let decrypted = decrypt_data(&cipher, &nonce, &salt, password)?;
         Ok(serde_json::from_slice(&decrypted)?)
     } else {
-        println!("🔐 First time setup. Please remember the passphrase you enter.");
+        println!("🔐 First time setup. Please remember the passphrase you entered.");
         let key: String = Input::new().with_prompt("Trello API Key").interact_text()?;
         let token: String = Password::new().with_prompt("Trello Token").interact()?;
         let board_id: String = Input::new()
@@ -127,7 +131,13 @@ fn get_auth(path: &PathBuf, password: &str) -> Result<StoredAuth> {
             general_purpose::STANDARD.encode(&nonce),
             general_purpose::STANDARD.encode(&cipher)
         );
+
+        // Create the directory if it doesn't exist
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
         fs::write(path, encoded)?;
+
         Ok(auth)
     }
 }
@@ -176,14 +186,27 @@ fn main() -> Result<()> {
 
     let config_path = config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("serc.enc");
+        .join("serc/serc.enc");
+
+    if Args::parse().debug {
+        eprintln!("Debug mode enabled.");
+        eprintln!("🔐 Credential store: {:?}", config_path);
+    }
 
     let password = Password::new()
         .with_prompt("🔑 Enter a passphrase to unlock credentials")
         .interact()?;
 
     let auth = get_auth(&config_path, &password)?;
-    println!("🔑 Credentials loaded successfully!");
+
+    if Args::parse().debug {
+        eprintln!("🔑 Credentials loaded successfully!");
+        eprintln!("Trello Key: {}", auth.trello.key);
+        eprintln!("Trello Token: {}", auth.trello.token);
+        eprintln!("Trello Board ID: {}", auth.trello.board_id);
+        eprintln!("WordPress Site: {}", auth.wordpress.site);
+        eprintln!("WordPress Username: {}", auth.wordpress.username);
+    }
 
     loop {
         let cards = list_cards(&auth.trello)?;
