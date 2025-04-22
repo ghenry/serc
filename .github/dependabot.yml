@@ -1,24 +1,9 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only
 # Copyright (c) 2025 Gavin Henry <ghenry@antnetworks.com>
-
-name: "Dependabot Auto Merge"
-
-on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
-
-jobs:
-  auto-merge:
-    if: github.actor == 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Enable auto-merge for Dependabot PRs
-        uses: peter-evans/enable-pull-request-automerge@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          merge-method: squash
-
+version: 2
+updates:
+  - package-ecosystem: cargo
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    target-branch: main
